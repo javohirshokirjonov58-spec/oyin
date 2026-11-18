@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arena Clash 2D - Real-time Fighting Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0c14;
+      --card-bg: rgba(18, 22, 36, 0.88);
+      --card-border: rgba(90, 125, 255, 0.25);
+      --primary: #4f46e5;
+      --accent-cyan: #06b6d4;
+      --accent-orange: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-green: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Rajdhani', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    h1, h2, h3, .heading-font {
+      font-family: 'Orbitron', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    /* Game Container */
+    #gameContainer {
+      position: relative;
+      width: 1200px;
+      height: 800px;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(79, 70, 229, 0.2);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0d1117;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1200px;
+      height: 800px;
+      display: block;
+      z-index: 1;
+    }
+
+    /* Screen UI Layer */
+    .ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(10, 15, 30, 0.85) 0%, rgba(5, 7, 15, 0.96) 100%);
+      backdrop-filter: blur(8px);
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .ui-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Glassmorphism Panel */
+    .glass-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      width: 90%;
+      max-width: 960px;
+      max-height: 92%;
+      overflow-y: auto;
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+      border-color: #6366f1;
+      box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #4338ca 0%, #2563eb 100%);
+      box-shadow: 0 0 25px rgba(79, 70, 229, 0.6);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      border-color: #34d399;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+      border-color: #fbbf24;
+      color: #000;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+      border-color: #f87171;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .btn-outline:hover:not(:disabled) {
+      background: rgba(6, 182, 212, 0.15);
+    }
+
+    /* Inputs */
+    .input-field {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(10, 15, 30, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 10px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+    }
+
+    /* Character Selection Cards */
+    .character-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .char-card {
+      background: rgba(15, 20, 35, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .char-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--char-color, #4f46e5);
+      opacity: 0.6;
+    }
+
+    .char-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--char-color, #4f46e5);
+      background: rgba(25, 30, 50, 0.8);
+    }
+
+    .char-card.selected {
+      border-color: var(--char-color, #4f46e5);
+      box-shadow: 0 0 25px rgba(var(--char-rgb, 79, 70, 229), 0.4);
+      background: rgba(30, 35, 60, 0.9);
+    }
+
+    .char-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--char-color, #4f46e5) 0%, rgba(0,0,0,0.4) 100%);
+      border: 2px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      margin-bottom: 12px;
+      box-shadow: 0 0 15px var(--char-color, #4f46e5);
+    }
+
+    .char-stats {
+      width: 100%;
+      font-size: 14px;
+      color: var(--text-muted);
+      margin: 10px 0;
+      display: flex;
+      justify-content: space-around;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 0;
+    }
+
+    .char-skills {
+      font-size: 12px;
+      text-align: left;
+      width: 100%;
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .char-skills span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .key-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    /* Top HUD in Match */
+    #inGameHud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    #inGameHud > * {
+      pointer-events: auto;
+    }
+
+    .top-match-bar {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: rgba(10, 15, 25, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 30px;
+      padding: 8px 28px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px);
+    }
+
+    .timer-display {
+      font-family: 'Orbitron', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: 2px;
+    }
+
+    .goal-badge {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-orange);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Player Status & Cooldown HUD (Bottom Left) */
+    .player-action-hud {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(10, 15, 30, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 16px 20px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+    }
+
+    .hp-gauge-container {
+      width: 260px;
+    }
+
+    .hp-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .hp-bar-bg {
+      width: 100%;
+      height: 18px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 9px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .hp-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ef4444 0%, #10b981 100%);
+      width: 100%;
+      transition: width 0.2s ease;
+    }
+
+    .skill-slots-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .skill-slot {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      background: rgba(20, 25, 45, 0.9);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .skill-slot .slot-key {
+      position: absolute;
+      top: 3px;
+      right: 4px;
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      font-weight: 900;
+      color: #94a3b8;
+    }
+
+    .skill-slot .slot-icon {
+      font-size: 20px;
+    }
+
+    .skill-slot .slot-name {
+      font-size: 9px;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .skill-slot .cd-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Orbitron', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fbbf24;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.1s ease;
+    }
+
+    .skill-slot.on-cooldown .cd-overlay {
+      opacity: 1;
+    }
+
+    /* Diagnostics & Debug (Top Right) */
+    .top-right-diagnostics {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(10, 15, 25, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+    }
+
+    .diag-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .diag-val {
+      font-family: 'Orbitron', monospace;
+      color: var(--accent-cyan);
+    }
+
+    /* Kill / Combat Feed (Right side) */
+    .combat-feed {
+      position: absolute;
+      top: 70px;
+      right: 20px;
+      width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .feed-item {
+      background: rgba(15, 23, 42, 0.85);
+      border-left: 3px solid var(--accent-orange);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #e2e8f0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      animation: fadeInRight 0.3s ease;
+    }
+
+    @keyframes fadeInRight {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Respawn Overlay */
+    .respawn-banner {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(15, 20, 35, 0.95);
+      border: 2px solid var(--accent-red);
+      border-radius: 16px;
+      padding: 24px 48px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(239, 68, 68, 0.5);
+      display: none;
+    }
+
+    .respawn-banner.active {
+      display: block;
+      animation: pulse 1s infinite alternate;
+    }
+
+    /* Match Countdown */
+    .countdown-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 96px;
+      font-weight: 900;
+      color: #fbbf24;
+      text-shadow: 0 0 40px rgba(251, 191, 36, 0.8);
+      pointer-events: none;
+      display: none;
+    }
+
+    /* Tables */
+    .custom-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 15px;
+    }
+
+    .custom-table th {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      text-transform: uppercase;
+    }
+
+    .custom-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .custom-table tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .badge-rank-1 { color: #fbbf24; font-weight: 700; text-shadow: 0 0 10px #fbbf24; }
+    .badge-rank-2 { color: #cbd5e1; font-weight: 700; }
+    .badge-rank-3 { color: #b45309; font-weight: 700; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="gameContainer">
+    <!-- Main 2D Canvas -->
+    <canvas id="gameCanvas" width="1200" height="800"></canvas>
+
+    <!-- In-Game HUD Layer -->
+    <div id="inGameHud" class="hidden">
+      <!-- Top Center Match Timer -->
+      <div class="top-match-bar">
+        <div class="goal-badge">Target: 5 Kills</div>
+        <div class="timer-display" id="hudTimer">03:00</div>
+        <div class="goal-badge" id="hudScoreboardBrief">Match in progress</div>
+      </div>
+
+      <!-- Top Right Diagnostics & Debug Controls -->
+      <div class="top-right-diagnostics">
+        <div class="diag-item">
+          <span>FPS:</span>
+          <span class="diag-val" id="hudFps">60</span>
+        </div>
+        <div class="diag-item">
+          <span>Ping:</span>
+          <span class="diag-val" id="hudPing">0 ms</span>
+        </div>
+        <div class="diag-item">
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+            <input type="checkbox" id="chkDebugHitbox">
+            <span>Hitboxes</span>
+          </label>
+        </div>
+        <div class="diag-item">
+          <span>Sim Lag:</span>
+          <select id="selSimulatedLag" class="input-field" style="font-size:12px; padding:2px 6px;">
+            <option value="0">0 ms</option>
+            <option value="100">100 ms</option>
+            <option value="200">200 ms</option>
+          </select>
+        </div>
+        <button id="btnLeaveMatch" class="btn btn-outline" style="padding:4px 10px; font-size:11px;">Chiqish</button>
+      </div>
+
+      <!-- Combat Feed -->
+      <div class="combat-feed" id="hudCombatFeed"></div>
+
+      <!-- Respawn Overlay -->
+      <div class="respawn-banner" id="hudRespawnBanner">
+        <h2 style="color:var(--accent-red); margin-bottom:8px;">SIZ HALOK BO'LDINGIZ</h2>
+        <p style="font-size:18px; color:#cbd5e1;">Qayta tirilish: <span id="hudRespawnSeconds" style="font-weight:700; color:#fbbf24;">3</span> s</p>
+      </div>
+
+      <!-- Match Countdown 3..2..1.. -->
+      <div class="countdown-overlay" id="hudCountdown">3</div>
+
+      <!-- Bottom-Left Player Status & Action HUD -->
+      <div class="player-action-hud">
+        <div class="hp-gauge-container">
+          <div class="hp-label-row">
+            <span id="hudPlayerName" style="color:var(--accent-cyan);">Warrior</span>
+            <span id="hudPlayerHpText">150 / 150 HP</span>
+          </div>
+          <div class="hp-bar-bg">
+            <div class="hp-bar-fill" id="hudPlayerHpFill"></div>
+          </div>
+        </div>
+
+        <div class="skill-slots-row">
+          <div class="skill-slot" id="slotLight">
+            <span class="slot-key">J</span>
+            <span class="slot-icon">⚔️</span>
+            <span class="slot-name" id="slotLightName">Light</span>
+            <div class="cd-overlay" id="cdLight">0.0</div>
+          </div>
+
+          <div class="skill-slot" id="slotHeavy">
+            <span class="slot-key">K</span>
+            <span class="slot-icon">🛡️</span>
+            <span class="slot-name" id="slotHeavyName">Heavy</span>
+            <div class="cd-overlay" id="cdHeavy">0.0</div>
+          </div>
+
+          <div class="skill-slot" id="slotSpecial">
+            <span class="slot-key">L</span>
+            <span class="slot-icon">💥</span>
+            <span class="slot-name" id="slotSpecialName">Special</span>
+            <div class="cd-overlay" id="cdSpecial">0.0</div>
+          </div>
+
+          <div class="skill-slot" id="slotDodge">
+            <span class="slot-key">SPACE</span>
+            <span class="slot-icon">💨</span>
+            <span class="slot-name">Dodge</span>
+            <div class="cd-overlay" id="cdDodge">0.0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 1: Login & Character Select -->
+    <div id="screenLogin" class="ui-overlay">
+      <div class="glass-panel" style="text-align:center;">
+        <h1 style="font-size:36px; background:linear-gradient(90deg, #38bdf8, #818cf8, #c084fc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:6px;">
+          ARENA CLASH 2D
+        </h1>
+        <p style="color:var(--text-muted); font-size:16px; margin-bottom:24px;">
+          Real-time Server-Authoritative 2D Fighting Arena
+        </p>
+
+        <!-- Nickname & Profile Bar -->
+        <div style="display:flex; justify-content:center; align-items:center; gap:14px; margin-bottom:20px;">
+          <input type="text" id="inputNickname" class="input-field" placeholder="Nickname kiriting..." maxlength="15" style="width:260px;" value="Champion">
+          <div style="background:rgba(255,255,255,0.06); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); text-align:left;">
+            <div style="font-size:11px; color:var(--text-muted);">MMR REYTING</div>
+            <div id="profileMmr" style="font-family:'Orbitron', monospace; font-size:18px; font-weight:700; color:var(--accent-orange);">1000</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.06); padding:8px 16px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); text-align:left;">
+            <div style="font-size:11px; color:var(--text-muted);">G'ALABA / MAG'LUBIYAT</div>
+            <div id="profileWinLoss" style="font-family:'Orbitron', monospace; font-size:18px; font-weight:700; color:var(--accent-green);">0W - 0L</div>
+          </div>
+        </div>
+
+        <h3 style="font-size:16px; color:#cbd5e1; margin-bottom:12px;">QAHRAMONINGIZNI TANLANG</h3>
+        <div class="character-cards" id="charSelectCards">
+          <!-- Warrior -->
+          <div class="char-card selected" data-class="warrior" style="--char-color:#ef4444; --char-rgb:239, 68, 68;">
+            <div class="char-avatar" style="border-color:#ef4444;">🛡️</div>
+            <h2 style="font-size:20px; color:#ef4444;">Warrior</h2>
+            <div style="font-size:13px; color:#fca5a5; margin-bottom:6px;">Qalqonli Bahodir</div>
+            <div class="char-stats">
+              <span>❤️ 150 HP</span>
+              <span>⚡ 220 Spd</span>
+              <span>🛡️ Tank/AoE</span>
+            </div>
+            <div class="char-skills">
+              <span><span class="key-badge">J</span> Sword Slash (15 DMG)</span>
+              <span><span class="key-badge">K</span> Shield Bash (25 DMG + Knockback)</span>
+              <span><span class="key-badge">L</span> Whirlwind (35 DMG, 360° spin)</span>
+              <span><span class="key-badge">Space</span> Power Dash (120px)</span>
+            </div>
+          </div>
+
+          <!-- Rogue -->
+          <div class="char-card" data-class="rogue" style="--char-color:#10b981; --char-rgb:16, 185, 129;">
+            <div class="char-avatar" style="border-color:#10b981;">🗡️</div>
+            <h2 style="font-size:20px; color:#10b981;">Rogue</h2>
+            <div style="font-size:13px; color:#6ee7b7; margin-bottom:6px;">Soyalar Qotili</div>
+            <div class="char-stats">
+              <span>❤️ 100 HP</span>
+              <span>⚡ 310 Spd</span>
+              <span>💨 Teleport/Crit</span>
+            </div>
+            <div class="char-skills">
+              <span><span class="key-badge">J</span> Dagger Thrust (12 DMG, Fast)</span>
+              <span><span class="key-badge">K</span> Dual Slice (22 DMG)</span>
+              <span><span class="key-badge">L</span> Shadow Step (30 DMG, Teleport)</span>
+              <span><span class="key-badge">Space</span> Shadow Roll (180px)</span>
+            </div>
+          </div>
+
+          <!-- Mage -->
+          <div class="char-card" data-class="mage" style="--char-color:#38bdf8; --char-rgb:56, 189, 248;">
+            <div class="char-avatar" style="border-color:#38bdf8;">🔮</div>
+            <h2 style="font-size:20px; color:#38bdf8;">Mage</h2>
+            <div style="font-size:13px; color:#7dd3fc; margin-bottom:6px;">Sehr Ustozi</div>
+            <div class="char-stats">
+              <span>❤️ 90 HP</span>
+              <span>⚡ 240 Spd</span>
+              <span>✨ Ranged/Laser</span>
+            </div>
+            <div class="char-skills">
+              <span><span class="key-badge">J</span> Magic Orb (10 DMG, Projectile)</span>
+              <span><span class="key-badge">K</span> Explosion Wave (28 DMG, AoE)</span>
+              <span><span class="key-badge">L</span> Arcane Laser (40 DMG, Piercing)</span>
+              <span><span class="key-badge">Space</span> Arcane Blink (150px)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display:flex; justify-content:center; gap:16px; margin-top:24px;">
+          <button id="btnOpenLobby" class="btn btn-primary" style="font-size:16px; padding:14px 32px;">
+            🌐 Onlayn Arena (Lobby)
+          </button>
+          <button id="btnStartOfflinePractice" class="btn btn-success" style="font-size:16px; padding:14px 28px;">
+            🎮 Offline 2P Practice
+          </button>
+          <button id="btnViewLeaderboard" class="btn btn-outline" style="font-size:14px; padding:14px 20px;">
+            🏆 Reyting & Tarix
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Online Lobby & Matchmaking -->
+    <div id="screenLobby" class="ui-overlay hidden">
+      <div class="glass-panel" style="max-width:850px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+          <h2>Arena Matchmaking & Xonalar</h2>
+          <button id="btnBackToLogin" class="btn btn-outline" style="padding:6px 14px; font-size:12px;">Bosh Menyu</button>
+        </div>
+
+        <!-- Matchmaking Options Panel -->
+        <div id="panelLobbySelect" style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+          <!-- Quick Match Box -->
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:20px; text-align:center;">
+            <h3 style="color:var(--accent-cyan); margin-bottom:8px;">Tezkor O'yin (Quick Match)</h3>
+            <p style="font-size:14px; color:var(--text-muted); margin-bottom:18px;">
+              Tizim sizning MMR reytingingizga mos 2-4 ta raqibni avtomatik topadi va matchni boshlaydi.
+            </p>
+            <div id="queueStatusText" style="font-size:14px; margin-bottom:12px; color:#fbbf24; display:none;">Navbatda qidirilmoqda...</div>
+            <button id="btnQuickMatch" class="btn btn-primary" style="width:100%;">
+              ⚡ Navbatga Kirish
+            </button>
+          </div>
+
+          <!-- Private Room Box -->
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:20px;">
+            <h3 style="color:var(--accent-orange); margin-bottom:8px; text-align:center;">Do'stlar Xonasi</h3>
+            <p style="font-size:14px; color:var(--text-muted); margin-bottom:16px; text-align:center;">
+              Yangi 6 xonali maxfiy xona oching yoki do‘stingiz yuborgan kod orqali kiring.
+            </p>
+
+            <button id="btnCreatePrivateRoom" class="btn btn-warning" style="width:100%; margin-bottom:14px;">
+              🔑 Xona Yaratish (Create Room)
+            </button>
+
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="inputRoomCode" class="input-field" placeholder="6 xonali kod..." maxlength="6" style="text-transform:uppercase; font-family:'Orbitron', monospace; width:65%; text-align:center;">
+              <button id="btnJoinRoom" class="btn btn-outline" style="width:35%;">Kirish</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inside Active Room Panel -->
+        <div id="panelActiveRoom" style="display:none; margin-top:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.4); padding:12px 18px; border-radius:10px; margin-bottom:16px;">
+            <div>
+              <span style="font-size:13px; color:var(--text-muted);">XONA KODI: </span>
+              <span id="displayRoomCode" style="font-family:'Orbitron', monospace; font-size:22px; font-weight:900; color:#38bdf8; letter-spacing:2px;">------</span>
+            </div>
+            <div id="roomStatusBadge" style="font-size:13px; font-weight:700; color:#fbbf24;">KUTILMOQDA (2-4 O'YINCHI)</div>
+            <button id="btnLeaveRoom" class="btn btn-danger" style="padding:6px 12px; font-size:11px;">Xonani Tark Etish</button>
+          </div>
+
+          <h4 style="font-size:14px; color:#cbd5e1; margin-bottom:10px; text-transform:uppercase;">Xonadagi Ishtirokchilar</h4>
+          <div id="roomPlayersList" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; margin-bottom:20px;">
+            <!-- Player slots populated via JS -->
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.1); padding-top:16px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:14px; color:var(--text-muted);">Qahramonni o'zgartirish:</span>
+              <select id="selLobbyHero" class="input-field" style="padding:6px 12px; font-size:14px;">
+                <option value="warrior">Warrior (Bahodir)</option>
+                <option value="rogue">Rogue (Qotil)</option>
+                <option value="mage">Mage (Sehrgar)</option>
+              </select>
+            </div>
+
+            <button id="btnToggleReady" class="btn btn-success" style="font-size:16px; padding:12px 32px;">
+              Tayyorman (Ready)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Match Result & Leaderboard -->
+    <div id="screenResult" class="ui-overlay hidden">
+      <div class="glass-panel" style="max-width:850px; text-align:center;">
+        <h1 id="resultTitle" style="font-size:32px; color:#fbbf24; margin-bottom:6px;">MATCH YAKUNLANDI</h1>
+        <p id="resultReasonText" style="color:var(--text-muted); font-size:15px; margin-bottom:18px;">Vaqt tugadi</p>
+
+        <!-- Final Score Table -->
+        <table class="custom-table" id="resultScoreboard">
+          <thead>
+            <tr>
+              <th>O'rin</th>
+              <th>Nickname</th>
+              <th>Sinf</th>
+              <th>Kills</th>
+              <th>Deaths</th>
+              <th>Zarar (DMG)</th>
+              <th>MMR O'zgarishi</th>
+            </tr>
+          </thead>
+          <tbody id="resultTableBody">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
+
+        <!-- Navigation Tabs: Top Leaderboard & History -->
+        <div style="display:flex; justify-content:center; gap:12px; margin:20px 0 12px;">
+          <button id="btnTabResult" class="btn btn-outline" style="padding:6px 16px; font-size:12px;">Natija</button>
+          <button id="btnTabLeaderboard" class="btn btn-outline" style="padding:6px 16px; font-size:12px;">Global Top-20</button>
+          <button id="btnTabHistory" class="btn btn-outline" style="padding:6px 16px; font-size:12px;">O'yin Tarixi</button>
+        </div>
+
+        <div id="panelGlobalLeaderboard" style="display:none;">
+          <h3 style="font-size:16px; color:var(--accent-cyan); margin-bottom:8px;">Global Top 20 O'yinchilar</h3>
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nickname</th>
+                <th>MMR</th>
+                <th>G'alaba</th>
+                <th>Mag'lubiyat</th>
+                <th>Jami Kill</th>
+              </tr>
+            </thead>
+            <tbody id="tableLeaderboardBody"></tbody>
+          </table>
+        </div>
+
+        <div id="panelMatchHistory" style="display:none;">
+          <h3 style="font-size:16px; color:var(--accent-orange); margin-bottom:8px;">So'nggi O'yinlaringiz</h3>
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Sana</th>
+                <th>Sinf</th>
+                <th>O'rin</th>
+                <th>K/D</th>
+                <th>Zarar</th>
+                <th>MMR +/-</th>
+              </tr>
+            </thead>
+            <tbody id="tableHistoryBody"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:16px; margin-top:20px;">
+          <button id="btnResultPlayAgain" class="btn btn-primary" style="padding:12px 28px;">Yana O'ynash</button>
+          <button id="btnResultBackLobby" class="btn btn-outline" style="padding:12px 24px;">Lobbyga Qaytish</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Offline 2P Practice Overlay -->
+    <div id="screenOfflineSetup" class="ui-overlay hidden">
+      <div class="glass-panel" style="max-width:800px; text-align:center;">
+        <h2 style="color:var(--accent-green); margin-bottom:6px;">OFFLINE 2-PLAYER PRACTICE</h2>
+        <p style="color:var(--text-muted); font-size:15px; margin-bottom:20px;">
+          Bitta klaviaturada ikki kishi o'ynash uchun lokal mashg'ulot rejimi
+        </p>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+          <!-- Player 1 Config -->
+          <div style="background:rgba(239,68,68,0.1); border:1px solid #ef4444; border-radius:12px; padding:18px;">
+            <h3 style="color:#ef4444; margin-bottom:8px;">1-O'yinchi (P1)</h3>
+            <div style="font-size:13px; color:#cbd5e1; margin-bottom:12px;">
+              Harakat: <b>W, A, S, D</b><br>
+              Zarbalar: <b>J</b> (Light), <b>K</b> (Heavy), <b>L</b> (Special)<br>
+              Dodge: <b>Space</b>
+            </div>
+            <label style="font-size:13px; color:var(--text-muted);">Qahramon:</label>
+            <select id="selP1Class" class="input-field" style="width:100%; margin-top:4px;">
+              <option value="warrior">Warrior (150 HP, Melee Tank)</option>
+              <option value="rogue">Rogue (100 HP, Fast Assassin)</option>
+              <option value="mage">Mage (90 HP, Laser/Ranged)</option>
+            </select>
+          </div>
+
+          <!-- Player 2 Config -->
+          <div style="background:rgba(56,189,248,0.1); border:1px solid #38bdf8; border-radius:12px; padding:18px;">
+            <h3 style="color:#38bdf8; margin-bottom:8px;">2-O'yinchi (P2)</h3>
+            <div style="font-size:13px; color:#cbd5e1; margin-bottom:12px;">
+              Harakat: <b>Arrow Keys (↑, ←, ↓, →)</b><br>
+              Zarbalar: <b>Numpad 1 / U</b> (Light), <b>Numpad 2 / I</b> (Heavy), <b>Numpad 3 / O</b> (Special)<br>
+              Dodge: <b>Numpad 0 / P / RShift</b>
+            </div>
+            <label style="font-size:13px; color:var(--text-muted);">Qahramon:</label>
+            <select id="selP2Class" class="input-field" style="width:100%; margin-top:4px;">
+              <option value="rogue">Rogue (100 HP, Fast Assassin)</option>
+              <option value="warrior">Warrior (150 HP, Melee Tank)</option>
+              <option value="mage">Mage (90 HP, Laser/Ranged)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:16px;">
+          <button id="btnLaunchOfflineBattle" class="btn btn-success" style="font-size:16px; padding:12px 32px;">
+            ⚔️ Jangni Boshlash
+          </button>
+          <button id="btnCancelOffline" class="btn btn-outline" style="padding:12px 24px;">Bekor Qilish</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
+
